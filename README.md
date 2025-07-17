@@ -1,5 +1,6 @@
 
-# Mesh3: Military-Grade P2P Web3 Chat System
+## Mesh3: Merkle-Enforced Secure Handshake 3
+
 
 **Mesh3** is a secure, decentralized chat application built using WebRTC and Web3 technologies. It provides real-time, end-to-end encrypted peer-to-peer communication between users authenticated via blockchain wallets.
 
