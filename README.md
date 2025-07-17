@@ -76,7 +76,7 @@ Mesh3 enables two users to securely exchange messages over a peer-to-peer connec
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/mesh3.git
+git clone https://github.com/dhanushranga1/mesh3.git
 cd mesh3
 
 # Start the backend
