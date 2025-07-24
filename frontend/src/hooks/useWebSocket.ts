@@ -23,10 +23,19 @@ export default function useWebSocket(
   }, [onMessage]);
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId) {
+      // Cleanup when no room
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+      setConnected(false);
+      pendingMessagesRef.current = [];
+      return;
+    }
 
-    // Close existing connection
-    if (socketRef.current) {
+    // Close existing connection if it exists
+    if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
       socketRef.current.close();
       socketRef.current = null;
     }
@@ -45,10 +54,13 @@ export default function useWebSocket(
       ws.send(JSON.stringify(joinPayload));
 
       // Flush buffered messages
-      pendingMessagesRef.current.forEach((msg) => {
-        ws.send(JSON.stringify(msg));
-      });
-      pendingMessagesRef.current = [];
+      if (pendingMessagesRef.current.length > 0) {
+        console.log(`[WebSocket] Sending ${pendingMessagesRef.current.length} buffered messages`);
+        pendingMessagesRef.current.forEach((msg) => {
+          ws.send(JSON.stringify(msg));
+        });
+        pendingMessagesRef.current = [];
+      }
     };
 
     ws.onmessage = (event) => {

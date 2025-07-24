@@ -55,8 +55,18 @@ export default function useEncryption() {
 
   // Derive shared secret and AES key from peer's public key
   const deriveSharedKey = useCallback(async (peerPublicKeyJwk: JsonWebKey): Promise<void> => {
+    // Wait for local key pair to be generated if not ready
     if (!keysRef.current?.keyPair) {
-      throw new Error('Local key pair not generated yet');
+      console.log('[Encryption] Waiting for local key pair generation...');
+      // Wait up to 5 seconds for key generation
+      const startTime = Date.now();
+      while (!keysRef.current?.keyPair && (Date.now() - startTime) < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      if (!keysRef.current?.keyPair) {
+        throw new Error('Local key pair not generated within timeout');
+      }
     }
 
     try {

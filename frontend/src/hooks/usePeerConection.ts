@@ -83,7 +83,8 @@ export default function usePeerConnection(events: PeerEvents) {
         } catch (error) {
           console.error('[PeerConnection] Key exchange failed:', error);
           setEncryptionStatus('error');
-          events.onEncryptionError?.('Key exchange failed');
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          events.onEncryptionError?.('Key exchange failed: ' + errorMessage);
         }
         return;
       }
@@ -263,8 +264,11 @@ export default function usePeerConnection(events: PeerEvents) {
       console.log('[DataChannel] ✅ Data channel opened');
       setIsConnected(true);
       
+      // Start key exchange after a brief delay to ensure both sides are ready
       if (encryption.encryptionEnabled) {
-        await initiateKeyExchange();
+        setTimeout(() => {
+          initiateKeyExchange();
+        }, 500); // 500ms delay to avoid race conditions
       }
     };
 
@@ -406,6 +410,12 @@ export default function usePeerConnection(events: PeerEvents) {
       return;
     }
 
+    // Check if this is an end-of-candidates indicator
+    if (!candidate.candidate || candidate.candidate === '') {
+      console.log('[ICE] Received end-of-candidates signal');
+      return; // Skip empty candidates
+    }
+
     console.log('[ICE] Attempting to add candidate:', candidate.candidate);
 
     if (peerRef.current.remoteDescription) {
@@ -414,7 +424,7 @@ export default function usePeerConnection(events: PeerEvents) {
         console.log('[ICE] ✅ Candidate added successfully');
       } catch (error) {
         console.error('[ICE] ❌ Failed to add candidate:', error);
-        // Don't throw - some candidates might be incompatible
+        // Don't throw - some candidates might be incompatible or from previous sessions
       }
     } else {
       console.log('[ICE] Queueing candidate (no remote description yet)');
@@ -453,18 +463,21 @@ export default function usePeerConnection(events: PeerEvents) {
   const reset = () => {
     console.log('[PeerConnection] Resetting connection');
     
-    if (peerRef.current) {
-      peerRef.current.close();
-      peerRef.current = null;
-    }
+    // Close existing connections
     if (dataChannelRef.current) {
       dataChannelRef.current.close();
       dataChannelRef.current = null;
     }
     
-    // Clear ICE candidate queue
+    if (peerRef.current) {
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+    
+    // Clear ICE candidate queue to prevent stale candidates
     iceCandidateQueue.current = [];
     
+    // Reset all state
     setIsConnected(false);
     setConnectionState('new');
     setIceConnectionState('new');

@@ -115,6 +115,26 @@ export default function HomePage() {
           console.log('[Mesh3] Received peer_ready signal');
           setPeerReady(true);
           setMessages((prev) => [...prev, "🤝 Second peer joined, initiating connection..."]);
+          
+          // Small delay to ensure both peers are fully ready
+          setTimeout(async () => {
+            if (peerRole === 'initiator' && peer.isConfigReady) {
+              try {
+                console.log('[Mesh3] Creating offer as initiator...');
+                const offer = await peer.createOffer();
+                sendSocketMessageRef.current({
+                  type: 'webrtc_offer',
+                  room_id: roomId,
+                  offer
+                });
+                setMessages((prev) => [...prev, "📤 Sent connection offer"]);
+              } catch (error) {
+                console.error('[Mesh3] Failed to create offer:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                setMessages((prev) => [...prev, `❌ Failed to create offer: ${errorMessage}`]);
+              }
+            }
+          }, 1000);
           break;
 
         case 'webrtc_offer':
@@ -160,7 +180,8 @@ export default function HomePage() {
             
           } catch (error) {
             console.error('[Mesh3] Error processing offer:', error);
-            setMessages((prev) => [...prev, `❌ Failed to process offer: ${error.message}`]);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setMessages((prev) => [...prev, `❌ Failed to process offer: ${errorMessage}`]);
           } finally {
             setIsProcessingOffer(false);
           }
@@ -190,7 +211,8 @@ export default function HomePage() {
             
           } catch (error) {
             console.error('[Mesh3] Error processing answer:', error);
-            setMessages((prev) => [...prev, `❌ Failed to process answer: ${error.message}`]);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setMessages((prev) => [...prev, `❌ Failed to process answer: ${errorMessage}`]);
           }
           break;
 
@@ -208,7 +230,8 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error('[Mesh3] Error handling signal message:', err);
-      setMessages((prev) => [...prev, `❌ Signal Error: ${err.message || err}`]);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setMessages((prev) => [...prev, `❌ Signal Error: ${errorMessage}`]);
     }
   }, [peer, roomId, peerRole, isProcessingOffer]);
 
@@ -229,36 +252,6 @@ export default function HomePage() {
       setIsReconnecting(false);
     }
   }, [roomId, joined]);
-
-  // Auto-create offer when we are initiator and peer is ready
-  useEffect(() => {
-    if (peerRole === 'initiator' && peerReady && peer.isConfigReady && !isReconnecting) {
-      const createOfferDelayed = async () => {
-        // Wait a bit to ensure peer connection is stable
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        try {
-          console.log('[Mesh3] Creating offer as initiator...');
-          setMessages((prev) => [...prev, "📡 Creating connection offer..."]);
-          
-          const offer = await peer.createOffer();
-          sendSocketMessageRef.current({ 
-            type: 'webrtc_offer', 
-            room_id: roomId, 
-            offer 
-          });
-          
-          setMessages((prev) => [...prev, "📤 Sent connection offer"]);
-          
-        } catch (err) {
-          console.error('[Mesh3] Error creating offer:', err);
-          setMessages((prev) => [...prev, `❌ Offer Error: ${err.message}`]);
-        }
-      };
-      
-      createOfferDelayed();
-    }
-  }, [peerRole, peerReady, peer.isConfigReady, roomId, isReconnecting]);
 
   const handleJoin = useCallback(async () => {
     if (!walletAddress || !roomId) return;
@@ -304,7 +297,8 @@ export default function HomePage() {
       setInput('');
     } catch (error) {
       console.error('[Mesh3] Failed to send message:', error);
-      setMessages((prev) => [...prev, `❌ Failed to send message: ${error.message}`]);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setMessages((prev) => [...prev, `❌ Failed to send message: ${errorMessage}`]);
     }
   }, [input, peer]);
 
